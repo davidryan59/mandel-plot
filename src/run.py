@@ -70,13 +70,16 @@ while True:
     if regen_image == True:
         # Regenerate the fractal image
         start_time = time.time()
-        max_iterations = round(2 ** iter_2exp)
+        max_iteration = round(2 ** iter_2exp)
         x_pixels = round(2 ** x_res_2exp)
         y_pixels = round(2 ** y_res_2exp)
         x_width = 2 ** (-zoom_2exp)
         move_increment = x_width * 0.125
 
-        iteration_count_array = mandelbrot_set_float(x_centre, y_centre, zoom_2exp, x_pixels, y_pixels, max_iterations)
+        start_iteration = 0
+        end_iteration = max_iteration
+
+        iteration_count_array = mandelbrot_set_float(x_centre, y_centre, zoom_2exp, x_pixels, y_pixels, start_iteration, end_iteration)[2]
 
         end_time = time.time()
         image_time_ms = (end_time - start_time) * 1000
@@ -174,7 +177,7 @@ while True:
         print('CURRENT STATISTICS')
         print('')
         print('(x, y) = (%s, %s)' % (x_centre, y_centre))
-        print('Max iterations (effort): %s (%s)' % (max_iterations, iter_2exp))
+        print('Max iterations (effort): %s (%s)' % (max_iteration, iter_2exp))
         print('Zoom factor: %s' % zoom_2exp)
         print('Resolution = %s x %s' % (x_pixels, y_pixels))
         print('Colour scheme (B, R, G) = (%s, %s, %s)' % (period_B, period_R, period_G))
