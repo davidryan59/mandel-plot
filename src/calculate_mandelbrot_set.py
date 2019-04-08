@@ -2,15 +2,6 @@ import numpy
 from numba import jit
 
 @jit
-def mandelbrot_point_float(z_start, max_iterations):
-    z_current = z_start
-    for current_iteration in range(max_iterations):
-        if abs(z_current) > 2:
-            return current_iteration
-        z_current = z_current * z_current + z_start    # Mandelbrot function here
-    return 0
-
-@jit
 def mandelbrot_set_float(x_centre, y_centre, zoom_2exp, x_pixels, y_pixels, max_iterations):
     # Inputs for x_centre and y_centre are floating point.
     # Limited accuracy - a decimal version will have higher accuracy.
@@ -32,6 +23,19 @@ def mandelbrot_set_float(x_centre, y_centre, zoom_2exp, x_pixels, y_pixels, max_
 
     for x_idx in range(x_pixels):
         for y_idx in range(y_pixels):
-            iteration_count_array[x_idx, y_idx] = mandelbrot_point_float(x_coord_array[x_idx] + 1j * y_coord_array[y_idx], max_iterations)
+            iteration_count_array[x_idx, y_idx] = 0
+            x_start = x_coord_array[x_idx]
+            y_start = y_coord_array[y_idx]
+            x_current = x_start
+            y_current = y_start
+            for current_iterations in range(max_iterations):
+                x2_current = x_current * x_current
+                y2_current = y_current * y_current
+                if x2_current + y2_current > 4:
+                    iteration_count_array[x_idx, y_idx] = current_iterations
+                    break
+                x_next = x2_current - y2_current + x_start
+                y_current = 2 * x_current * y_current + y_start
+                x_current = x_next
 
     return iteration_count_array

@@ -75,7 +75,9 @@ while True:
         y_pixels = round(2 ** y_res_2exp)
         x_width = 2 ** (-zoom_2exp)
         move_increment = x_width * 0.125
+
         iteration_count_array = mandelbrot_set_float(x_centre, y_centre, zoom_2exp, x_pixels, y_pixels, max_iterations)
+
         end_time = time.time()
         image_time_ms = (end_time - start_time) * 1000
         regen_image = False
