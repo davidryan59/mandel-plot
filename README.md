@@ -9,8 +9,8 @@ Run project using `python3 src/run.py`.
 ## Set up virtualenv to run project
 
 ``` sh
-python3 -m venv ~/.virtualenvs/ifs_png
-source ~/.virtualenvs/ifs_png/bin/activate
+python3 -m venv ~/.virtualenvs/mandel-plot
+source ~/.virtualenvs/mandel-plot/bin/activate
 
 pip3 install numpy
 pip3 install numba
