@@ -1,14 +1,16 @@
-# from get_progressive_pixel_order import get_progressive_pixel_order as gppo
-
 import math
 import time
+
+# # Looking to speed up ppo using jit.
+# # However, it doesn't compile yet...
 # from numba import jit
 
 verbose = False
 
+
 # @jit
-def gppo2(exp2):
-    # 'Get Progressive Pixel Order, power of 2'
+def ppo2(exp2):
+    # 'Progressive Pixel Order, power of 2'
 
     # Provide a progressive pixel order for image power of 2
     # e.g. 1x1, 2x2, 4x4, 8x8, etc
@@ -19,9 +21,9 @@ def gppo2(exp2):
     # Don't allow massive values through - will take too long!
     max_exp2 = 13      # 67 million pixels, 8192 x 8192 = 2^13 x 2^13
     if max_exp2 < exp2:
-        raise Exception('For gppo2 function, image is square with size N x N, where N = 2^n, and max(n) = {}, however requested n = {}.'.format(max_exp2, exp2))
+        raise Exception('For ppo2 function, image is square with size N x N, where N = 2^n, and max(n) = {}, however requested n = {}.'.format(max_exp2, exp2))
     if verbose:
-        print('Function gppo2 running with 2-exponent {}'.format(exp2))
+        print('Function ppo2 running with 2-exponent {}'.format(exp2))
 
 
     # Base case for 1x1
@@ -35,7 +37,7 @@ def gppo2(exp2):
 
 
     # Iterative case
-    (parent_prev, x_pos_prev, y_pos_prev, x_size_prev, y_size_prev) = gppo2(exp2 - 1)
+    (parent_prev, x_pos_prev, y_pos_prev, x_size_prev, y_size_prev) = ppo2(exp2 - 1)
 
     len_prev = len(parent_prev)
     len_prev2 = 2 * len_prev
@@ -60,8 +62,8 @@ def gppo2(exp2):
 
 
 # @jit
-def gppo(x_px, y_px):
-    # 'Get Progressive Pixel Order'
+def ppo(x_px, y_px):
+    # 'Progressive Pixel Order'
 
     # Get order of update of pixels for an x_px * y_px image
     # where some of the earlier pixels cover a larger size
@@ -74,16 +76,16 @@ def gppo(x_px, y_px):
     x_px = int(x_px)
     y_px = int(y_px)
     if x_px < 1 or y_px < 1:
-        raise Exception('Function gppo supplied with invalid size {} x {}'.format(x_px, y_px))
+        raise Exception('Function ppo supplied with invalid size {} x {}'.format(x_px, y_px))
     if verbose:
         print('')
-        print('Function gppo running with size {} x {}'.format(x_px, y_px))
+        print('Function ppo running with size {} x {}'.format(x_px, y_px))
 
     # Get basic pixel structure using power of 2
     px = max(x_px, y_px)
     exp2 = math.log2(px)
     exp2 = math.ceil(exp2)
-    (parent, x_pos, y_pos, x_size, y_size) = gppo2(exp2)
+    (parent, x_pos, y_pos, x_size, y_size) = ppo2(exp2)
 
     # Get output into a format it can be filtered and sorted
     the_len = len(parent)
@@ -103,47 +105,12 @@ def gppo(x_px, y_px):
         print('Filtered data length is {}'.format(the_len))
         # print(data)
 
-    # # Update indices of this row and parent row, after filtering
-    # # Indices for this row, data[i][0], are strictly ascending
-    # # so can do binary search on them
-    # @jit
-    # def search_for_old_parent_index(s, i, j):
-    #     # Searching data[i..j][0] for value s
-    #     # if verbose:
-    #     #     print('Searching for parent index {} in rows {} to {}'.format(s, i, j))
-    #     if j < i:
-    #         raise Exception('Parent index {} not found'.format(s))
-    #     k = round(0.5 * (i + j))
-    #     this_s = data[k][0]
-    #     # if verbose:
-    #     #     print('Midpoint is row {} with index {}'.format(k, this_s))
-    #     if this_s == s:
-    #         # if verbose:
-    #         #     print('MATCH')
-    #         return k
-    #     elif s < this_s:
-    #         # if verbose:
-    #         #     print('{} < {}, search earlier rows'.format(s, this_s))
-    #         return search_for_old_parent_index(s, i, k-1)
-    #     else:
-    #         # if verbose:
-    #         #     print('{} > {}, search later rows'.format(s, this_s))
-    #         return search_for_old_parent_index(s, k+1, j)
-
     if verbose:
         print('After filter, amending parent indices, then row indices, to take account of rows filtered out')
     for i in range(1, the_len):
         old_idx = data[i][1]
 
-        # # O(n^2) way
-        # for j in range(min(old_idx, the_len - 1), -1, -1):
-        #     if data[j][0] == old_idx:
-        #         new_idx = j
-        #         break
-        # else:
-        #     raise Exception('Index {} not found, for parent of row {}'.format(old_idx, i))
-
-        # Try another O(n log(n)) way
+        # Binary search to find index
         start_search = 0
         end_search = the_len - 1
         mid_search = round(0.5 * (start_search + end_search))
@@ -159,16 +126,10 @@ def gppo(x_px, y_px):
             mid_search = round(0.5 * (start_search + end_search))
             if start_search == end_search:
                 raise Exception('The old index value was not found')
-
-
-        # # O(n log(n)) way
-        # # but doesn't seem to work with numba.jit
-        # new_idx = search_for_old_parent_index(old_idx, 0, the_len-1)
-
+        data[i][1] = new_idx
         # if verbose:
         #   print('Parent index: old {}, new {}'.format(old_idx, new_idx))
         #   print('')
-        data[i][1] = new_idx
 
     for i in range(0, the_len):
         data[i][0] = i
@@ -222,12 +183,6 @@ def gppo(x_px, y_px):
     if verbose:
         print('Data sorted by increasing distance from centre of image')
         # print(data)
-
-    # # Print the list of pixels
-    # for i in range(the_len):
-    #     data_row = data[i]
-    #     if verbose:
-    #       print('({}, {}) is {} x {}   {}'.format(data_row[2], data_row[3], data_row[4], data_row[5], data_row[6]))
 
     end_time = time.time()
     time_elapsed_ms = round(1000 * (end_time - start_time))

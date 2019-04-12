@@ -6,7 +6,8 @@ import cv2
 from calc_mandel_rect_float import calc_mandel_rect_float
 from draw_image import draw_image
 from update_parameter import update_parameter
-from gppo import gppo
+from get_ms_since import get_ms_since
+from ppo import ppo
 
 # Open a window to display the image
 window_name = 'image'
@@ -75,15 +76,22 @@ period_G = period_G_default
 # Initialise blank resolution parameters
 x_pixels = None
 y_pixels = None
-gppo_data = None
+ppo_data = None
 # Function to recalculate them
-def recalc_gppo(xr2, yr2):
-    global x_pixels, y_pixels
+def recalc_ppo(xr2, yr2):
+    global x_pixels, y_pixels, ppo_data
     x_pixels = round(2 ** xr2)
     y_pixels = round(2 ** yr2)
-    # gppo_data = gppo(x_pixels, y_pixels)
-# Populate resolution parameters
-recalc_gppo(x_res_2exp, y_res_2exp)
+    # Logging this operation to the console, since it's slow!
+    # Want the user to know the cost of changing resolution
+    print('')
+    print('Creating PPO (Progressive Pixel Ordering) data for {} x {} image...'.format(x_pixels, y_pixels))
+    start_time = time.time()
+    ppo_data = ppo(x_pixels, y_pixels)
+    print('...PPO data with length {} was created in {} ms'.format(len(ppo_data), get_ms_since(start_time)))
+    print('')
+# Call the function to initialise the right values
+recalc_ppo(x_res_2exp, y_res_2exp)
 
 regen_image = True
 redraw_image = True
@@ -125,15 +133,12 @@ while True:
             (x_current_array, y_current_array, iteration_count_array) = calc_mandel_rect_float(x_current_array, y_current_array, iteration_count_array, start_iteration, end_iteration, x_coord_array, y_coord_array)
             start_iteration = end_iteration
             end_iteration = min(max_iteration, start_iteration + iteration_increment)
-            new_time = time.time()
-            time_elapsed_ms = (new_time - reset_time) * 1000
-            if start_iteration < max_iteration and image_redraw_ms < time_elapsed_ms:
+            if start_iteration < max_iteration and image_redraw_ms < get_ms_since(reset_time):
                 # Need incremental update on image
                 draw_image(window_name, iteration_count_array, period_R, period_G, period_B)
-                reset_time = new_time
+                reset_time = time.time()
 
-        end_time = time.time()
-        image_time_ms = (end_time - start_time) * 1000
+        image_time_ms = get_ms_since(start_time)
         regen_image = False
 
     if redraw_image == True:
@@ -170,11 +175,11 @@ while True:
     elif the_input == 'r':
         x_res_2exp = update_parameter(x_res_2exp, increment=increment_2exp, min=x_res_2exp_min, max=x_res_2exp_max, step=step_2exp)
         y_res_2exp = update_parameter(y_res_2exp, increment=increment_2exp, min=y_res_2exp_min, max=y_res_2exp_max, step=step_2exp)
-        recalc_gppo(x_res_2exp, y_res_2exp)
+        recalc_ppo(x_res_2exp, y_res_2exp)
     elif the_input == 't':
         x_res_2exp = update_parameter(x_res_2exp, increment=-increment_2exp, min=x_res_2exp_min, max=x_res_2exp_max, step=step_2exp)
         y_res_2exp = update_parameter(y_res_2exp, increment=-increment_2exp, min=y_res_2exp_min, max=y_res_2exp_max, step=step_2exp)
-        recalc_gppo(x_res_2exp, y_res_2exp)
+        recalc_ppo(x_res_2exp, y_res_2exp)
 
     elif the_input == 'R':
         print('')
@@ -184,7 +189,7 @@ while True:
         print('x, y resolutions (log 2) are: %s, %s' % (x_res_2exp, y_res_2exp))
         x_res_2exp = update_parameter(x_res_2exp, message='Update x res (log 2)', min=x_res_2exp_min, max=x_res_2exp_max, step=step_2exp)
         y_res_2exp = update_parameter(y_res_2exp, message='Update y res (log 2)', min=y_res_2exp_min, max=y_res_2exp_max, step=step_2exp)
-        recalc_gppo(x_res_2exp, y_res_2exp)
+        recalc_ppo(x_res_2exp, y_res_2exp)
         print('x, y resolutions (log 2) are: %s, %s' % (x_res_2exp, y_res_2exp))
         print('Image will be %s x %s' % (round(2**x_res_2exp), round(2**y_res_2exp)))
 
