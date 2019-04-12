@@ -6,13 +6,12 @@ import cv2
 from calc_mandel_rect_float import calc_mandel_rect_float
 from draw_image import draw_image
 from update_parameter import update_parameter
-
+from gppo import gppo
 
 # Open a window to display the image
 window_name = 'image'
 cv2.namedWindow(window_name)
 cv2.moveWindow(window_name, 0, 0)
-
 
 # Tell user what's going on, in the terminal
 print('')
@@ -55,7 +54,7 @@ y_res_2exp_default = 8
 y_res_2exp_max = 9
 
 increment_2exp = 0.5
-step_2exp = 0.1
+step_2exp = 0.01
 
 period_B_default = 19
 period_R_default = 49
@@ -73,6 +72,19 @@ period_B = period_B_default
 period_R = period_R_default
 period_G = period_G_default
 
+# Initialise blank resolution parameters
+x_pixels = None
+y_pixels = None
+gppo_data = None
+# Function to recalculate them
+def recalc_gppo(xr2, yr2):
+    global x_pixels, y_pixels
+    x_pixels = round(2 ** xr2)
+    y_pixels = round(2 ** yr2)
+    # gppo_data = gppo(x_pixels, y_pixels)
+# Populate resolution parameters
+recalc_gppo(x_res_2exp, y_res_2exp)
+
 regen_image = True
 redraw_image = True
 while True:
@@ -82,8 +94,6 @@ while True:
         # Regenerate the fractal image
         start_time = time.time()
         max_iteration = round(2 ** iter_2exp)
-        x_pixels = round(2 ** x_res_2exp)
-        y_pixels = round(2 ** y_res_2exp)
         x_width = 2 ** (-zoom_2exp)
         move_increment = x_width * 0.125
 
@@ -160,9 +170,11 @@ while True:
     elif the_input == 'r':
         x_res_2exp = update_parameter(x_res_2exp, increment=increment_2exp, min=x_res_2exp_min, max=x_res_2exp_max, step=step_2exp)
         y_res_2exp = update_parameter(y_res_2exp, increment=increment_2exp, min=y_res_2exp_min, max=y_res_2exp_max, step=step_2exp)
+        recalc_gppo(x_res_2exp, y_res_2exp)
     elif the_input == 't':
         x_res_2exp = update_parameter(x_res_2exp, increment=-increment_2exp, min=x_res_2exp_min, max=x_res_2exp_max, step=step_2exp)
         y_res_2exp = update_parameter(y_res_2exp, increment=-increment_2exp, min=y_res_2exp_min, max=y_res_2exp_max, step=step_2exp)
+        recalc_gppo(x_res_2exp, y_res_2exp)
 
     elif the_input == 'R':
         print('')
@@ -172,6 +184,7 @@ while True:
         print('x, y resolutions (log 2) are: %s, %s' % (x_res_2exp, y_res_2exp))
         x_res_2exp = update_parameter(x_res_2exp, message='Update x res (log 2)', min=x_res_2exp_min, max=x_res_2exp_max, step=step_2exp)
         y_res_2exp = update_parameter(y_res_2exp, message='Update y res (log 2)', min=y_res_2exp_min, max=y_res_2exp_max, step=step_2exp)
+        recalc_gppo(x_res_2exp, y_res_2exp)
         print('x, y resolutions (log 2) are: %s, %s' % (x_res_2exp, y_res_2exp))
         print('Image will be %s x %s' % (round(2**x_res_2exp), round(2**y_res_2exp)))
 
@@ -213,7 +226,7 @@ while True:
         print('(x, y) = (%s, %s)' % (x_centre, y_centre))
         print('Max iterations (effort): %s (%s)' % (max_iteration, iter_2exp))
         print('Zoom factor: %s' % zoom_2exp)
-        print('Resolution = %s x %s' % (x_pixels, y_pixels))
+        print('Resolution = %s x %s (which is %s, %s log 2)' % (x_pixels, y_pixels, x_res_2exp, y_res_2exp))
         print('Colour scheme (B, R, G) = (%s, %s, %s)' % (period_B, period_R, period_G))
         print('Last image took {0:.0f} ms to generate'.format(image_time_ms))
         print('')
