@@ -1,11 +1,20 @@
 import time
-from PIL import Image
 
-from calculate_mandelbrot_set import mandelbrot_set_float
-from get_monochrome_image import get_monochrome_image
+import numpy
+import cv2
+
+from calc_mandel_rect_float import calc_mandel_rect_float
+from draw_image import draw_image
 from update_parameter import update_parameter
 
 
+# Open a window to display the image
+window_name = 'image'
+cv2.namedWindow(window_name)
+cv2.moveWindow(window_name, 0, 0)
+
+
+# Tell user what's going on, in the terminal
 print('')
 print('')
 print('')
@@ -17,6 +26,8 @@ print('')
 
 # User variables
 output_image_filename = 'src/temp_output_image.png'
+iteration_increment = 50
+image_redraw_ms = 200
 
 x_centre_min = -2.1
 x_centre_default = -0.75
@@ -32,15 +43,15 @@ zoom_2exp_max = 48
 zoom_2exp_increment = 1
 
 iter_2exp_min = 4
-iter_2exp_default = 8
+iter_2exp_default = 9
 iter_2exp_max = 24
 
 x_res_2exp_min = 4
-x_res_2exp_default = 8
+x_res_2exp_default = 9.5
 x_res_2exp_max = 13.4
 
 y_res_2exp_min = 3.6
-y_res_2exp_default = 8
+y_res_2exp_default = 9
 y_res_2exp_max = 13
 
 increment_2exp = 0.5
@@ -63,7 +74,7 @@ period_R = period_R_default
 period_G = period_G_default
 
 regen_image = True
-resave_image = True
+redraw_image = True
 while True:
     # MAIN CONTROL LOOP
 
@@ -76,32 +87,55 @@ while True:
         x_width = 2 ** (-zoom_2exp)
         move_increment = x_width * 0.125
 
-        start_iteration = 0
-        end_iteration = max_iteration
+        # Inputs for x_centre and y_centre are floating point.
+        # Limited accuracy - a decimal version will have higher accuracy.
 
-        iteration_count_array = mandelbrot_set_float(x_centre, y_centre, zoom_2exp, x_pixels, y_pixels, start_iteration, end_iteration)[2]
+        x_width = 2 ** (-zoom_2exp)
+        y_width = x_width * y_pixels / x_pixels
+
+        x_wp5 = 0.5 * x_width
+        x_min = x_centre - x_wp5
+        x_max = x_centre + x_wp5
+
+        y_wp5 = 0.5 * y_width
+        y_min = y_centre - y_wp5
+        y_max = y_centre + y_wp5
+
+        x_coord_array = numpy.linspace(x_min, x_max, x_pixels)
+        y_coord_array = numpy.linspace(y_min, y_max, y_pixels)
+
+        x_current_array = numpy.empty((x_pixels, y_pixels))
+        y_current_array = numpy.empty((x_pixels, y_pixels))
+        iteration_count_array = numpy.empty((x_pixels, y_pixels))
+
+        start_iteration = 0
+        end_iteration = min(max_iteration, iteration_increment)
+        reset_time = time.time()
+        while start_iteration < max_iteration:
+            (x_current_array, y_current_array, iteration_count_array) = calc_mandel_rect_float(x_current_array, y_current_array, iteration_count_array, start_iteration, end_iteration, x_coord_array, y_coord_array)
+            start_iteration = end_iteration
+            end_iteration = min(max_iteration, start_iteration + iteration_increment)
+            new_time = time.time()
+            time_elapsed_ms = (new_time - reset_time) * 1000
+            if start_iteration < max_iteration and image_redraw_ms < time_elapsed_ms:
+                # Need incremental update on image
+                draw_image(window_name, iteration_count_array, period_R, period_G, period_B)
+                reset_time = new_time
 
         end_time = time.time()
         image_time_ms = (end_time - start_time) * 1000
         regen_image = False
 
-    if resave_image == True:
-        # Save the fractal image to the output file
-        image_component_R = get_monochrome_image(period_R, iteration_count_array)
-        image_component_G = get_monochrome_image(period_G, iteration_count_array)
-        image_component_B = get_monochrome_image(period_B, iteration_count_array)
-        colour_image = Image.merge('RGB', (image_component_R, image_component_G, image_component_B))
-        colour_image = colour_image.transpose(Image.TRANSPOSE)
-        colour_image = colour_image.transpose(Image.FLIP_TOP_BOTTOM)
-        colour_image.save(output_image_filename)
-        resave_image = False
+    if redraw_image == True:
+        draw_image(window_name, iteration_count_array, period_R, period_G, period_B)
+        redraw_image = False
 
     # Get next user command - should be a single character
     print('', end='> ')
     the_input = input()
 
     regen_image = True
-    resave_image = True
+    redraw_image = True
 
     # Deal with all different user commands
     if the_input == 'a':
@@ -184,7 +218,7 @@ while True:
         print('Last image took {0:.0f} ms to generate'.format(image_time_ms))
         print('')
         regen_image = False
-        resave_image = False
+        redraw_image = False
 
     elif the_input == 'h':
         print('')
@@ -197,13 +231,14 @@ while True:
         print('QUIT (q)')
         print('')
         regen_image = False
-        resave_image = False
+        redraw_image = False
 
     elif the_input == 'q':
         print('Exiting program. Goodbye!')
+        cv2.destroyAllWindows()
         break
 
     else:
         print("Input %s not recognised. Use 'h' for help" % the_input)
         regen_image = False
-        resave_image = False
+        redraw_image = False

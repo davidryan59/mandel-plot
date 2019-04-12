@@ -15,7 +15,16 @@ source ~/.virtualenvs/mandel-plot/bin/activate
 pip3 install numpy
 pip3 install numba
 pip3 install Pillow
+pip3 install opencv-python
 
 pip3 list
 deactivate
 ```
+
+
+## What is each package doing?
+
+- numpy: numeric arrays
+- numba (jit): just in time processing of functions, large speed-up
+- Pillow (PIL, Image): image manipulation
+- opencv-python (cv2): display image in window
