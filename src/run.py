@@ -46,13 +46,13 @@ iter_2exp_min = 4
 iter_2exp_default = 9
 iter_2exp_max = 24
 
-x_res_2exp_min = 4
-x_res_2exp_default = 9.5
-x_res_2exp_max = 13.4
+x_res_2exp_min = 5
+x_res_2exp_default = 8
+x_res_2exp_max = 9
 
-y_res_2exp_min = 3.6
-y_res_2exp_default = 9
-y_res_2exp_max = 13
+y_res_2exp_min = 5
+y_res_2exp_default = 8
+y_res_2exp_max = 9
 
 increment_2exp = 0.5
 step_2exp = 0.1
