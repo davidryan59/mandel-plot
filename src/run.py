@@ -4,7 +4,8 @@ import numpy
 import cv2
 
 from initialise_current_array import initialise_current_array
-from calc_mandel_rect_float import calc_mandel_rect_float
+# from calc_mandel_rect_float import calc_mandel_rect_float
+from calc_mandel_prog_float import calc_mandel_prog_float
 from draw_image import draw_image
 from update_parameter import update_parameter
 from get_ms_since import get_ms_since
@@ -27,8 +28,9 @@ print('')
 
 # User variables
 output_image_filename = 'src/temp_output_image.png'
-iteration_increment = 50
-image_redraw_ms = 200
+iteration_increment = 1000
+pixels_to_draw_at_once = 100
+image_redraw_ms = 50
 
 x_centre_min = -2.1
 x_centre_default = -0.75
@@ -83,14 +85,14 @@ def recalc_ppo(xr2, yr2):
     global x_pixels, y_pixels, ppo_data
     x_pixels = round(2 ** xr2)
     y_pixels = round(2 ** yr2)
-    # # Logging this operation to the console, since it's slow!
-    # # Want the user to know the cost of changing resolution
-    # print('')
-    # print('Creating PPO (Progressive Pixel Ordering) data for {} x {} image...'.format(x_pixels, y_pixels))
-    # start_time = time.time()
-    # ppo_data = ppo(x_pixels, y_pixels)
-    # print('...PPO data with length {} was created in {} ms'.format(len(ppo_data), get_ms_since(start_time)))
-    # print('')
+    # Logging this operation to the console, since it's slow!
+    # Want the user to know the cost of changing resolution
+    print('')
+    print('Creating PPO (Progressive Pixel Ordering) data for {} x {} image...'.format(x_pixels, y_pixels))
+    start_time = time.time()
+    ppo_data = ppo(x_pixels, y_pixels)
+    print('...PPO data with length {} was created in {} ms'.format(len(ppo_data), get_ms_since(start_time)))
+    print('')
 # Call the function to initialise the right values
 recalc_ppo(x_res_2exp, y_res_2exp)
 
@@ -104,6 +106,7 @@ while True:
 
         sum_iter = 0
         max_iter = 0
+        min_iter = 1000000000000
 
         start_time = time.time()
         iterations_limit = round(2 ** iter_2exp)
@@ -127,29 +130,40 @@ while True:
         x_coords = numpy.linspace(x_min, x_max, x_pixels)
         y_coords = numpy.linspace(y_min, y_max, y_pixels)
         iter_curr_mx = numpy.zeros((x_pixels, y_pixels))
+        img_curr_mx = numpy.zeros((x_pixels, y_pixels))
         esc_mx = numpy.zeros((x_pixels, y_pixels))
         x_curr_mx = numpy.empty((x_pixels, y_pixels))
         y_curr_mx = numpy.empty((x_pixels, y_pixels))
         (x_curr_mx, y_curr_mx) = initialise_current_array(x_curr_mx, y_curr_mx, x_coords, y_coords)
 
+        loop_start_time = time.time()
         reset_time = time.time()
+        pstart, pend = 0, 0
         calculate_more_iterations = True
         while calculate_more_iterations:
+            pstart, pend = pend, pend + pixels_to_draw_at_once
             prev_sum = sum_iter
-            (x_curr_mx, y_curr_mx, iter_curr_mx, esc_mx, max_iter, sum_iter) = calc_mandel_rect_float(x_curr_mx, y_curr_mx, iter_curr_mx, esc_mx, max_iter, sum_iter, x_coords, y_coords, iteration_increment)
-            calculate_more_iterations = max_iter < iterations_limit and prev_sum < sum_iter
-            if calculate_more_iterations and image_redraw_ms < get_ms_since(reset_time):
+            # (x_curr_mx, y_curr_mx, iter_curr_mx, esc_mx, max_iter, sum_iter) = calc_mandel_rect_float(x_curr_mx, y_curr_mx, iter_curr_mx, esc_mx, max_iter, sum_iter, x_coords, y_coords, iteration_increment)
+            this_iter_incr = min(iterations_limit, max_iter + iteration_increment)
+            (x_curr_mx, y_curr_mx, iter_curr_mx, img_curr_mx, esc_mx, min_iter, max_iter, sum_iter) = calc_mandel_prog_float(x_curr_mx, y_curr_mx, iter_curr_mx, img_curr_mx, esc_mx, min_iter, max_iter, sum_iter, x_coords, y_coords, this_iter_incr, ppo_data, pstart, pend)
+            print(max_iter, iterations_limit, prev_sum, sum_iter)
+            curr_time = time.time()
+            calculate_more_iterations = curr_time - loop_start_time < 5
+            # calculate_more_iterations = min_iter < iterations_limit and prev_sum < sum_iter
+            # if calculate_more_iterations and image_redraw_ms < get_ms_since(reset_time):
+            if calculate_more_iterations:
                 # Need incremental update on image
-                draw_image(window_name, iter_curr_mx, period_R, period_G, period_B)
+                draw_image(window_name, img_curr_mx, period_R, period_G, period_B)
                 reset_time = time.time()
 
-        max_iter = int(max_iter)               # Array it derives from is a float
-        iter_curr_mx = iter_curr_mx * esc_mx   # Mask non-escaped points in the image to black
+        max_iter = int(max_iter)               # Derived from float array
+        min_iter = int(min_iter)
+        img_curr_mx = img_curr_mx * esc_mx   # Mask non-escaped points in the image to black
         image_time_ms = get_ms_since(start_time)
         regen_image = False
 
     if redraw_image == True:
-        draw_image(window_name, iter_curr_mx, period_R, period_G, period_B)
+        draw_image(window_name, img_curr_mx, period_R, period_G, period_B)
         redraw_image = False
 
     # Get next user command - should be a single character
